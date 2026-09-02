@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ローン比較</title>
+<meta name="theme-color" content="#2a78d6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ローン比較">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link id="appicon" rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root {
+  color-scheme: light;
+  --page:           #f9f9f7;
+  --surface-1:      #fcfcfb;
+  --field-bg:       #ffffff;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --gridline:       #e1e0d9;
+  --border:         rgba(11,11,11,0.10);
+  --series-1:       #2a78d6;
+  --series-2:       #eb6834;
+  --on-accent:      #ffffff;
+  --danger:         #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --field-bg:       #232322;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --on-accent:      #ffffff;
+    --danger:         #e66767;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- header ---------- */
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  padding: calc(11px + env(safe-area-inset-top)) 16px 11px;
+}
+header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: .01em; }
+header p  { margin: 1px 0 0; font-size: 11px; color: var(--text-muted); }
+
+main { padding: 14px 16px 8px; max-width: 720px; margin: 0 auto; }
+.page[hidden] { display: none; }
+
+h2 { margin: 0 0 8px; font-size: 12px; font-weight: 650; color: var(--text-secondary); letter-spacing: .04em; }
+h2 .count { color: var(--text-muted); font-weight: 400; margin-left: 6px; }
+
+/* ---------- buttons ---------- */
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid transparent; }
+button:disabled { opacity: .35; cursor: default; }
+.btn-ghost {
+  background: var(--surface-1); color: var(--text-secondary);
+  border: 1px solid var(--border); padding: 9px 14px; font-size: 13px;
+}
+.btn-ghost.danger { color: var(--danger); }
+
+/* ---------- condition tab strip ---------- */
+.tabstrip {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px;
+  scrollbar-width: none; -ms-overflow-style: none;
+  user-select: none; -webkit-user-select: none;
+}
+.tabstrip::-webkit-scrollbar { display: none; }
+.tabstrip button {
+  flex: none; padding: 7px 15px; font-size: 13px; border-radius: 999px;
+  background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
+  max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  -webkit-touch-callout: none;
+}
+/* 長押しドラッグで並べ替え中のタブ */
+.tabstrip button.drag-src {
+  position: relative; z-index: 5;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+  cursor: grabbing;
+}
+.hintlabel { font-weight: 400; color: var(--text-muted); margin-left: 8px; font-size: 11px; }
+.tabstrip button[aria-selected="true"] {
+  background: var(--series-1); color: var(--on-accent);
+  border-color: var(--series-1); font-weight: 600;
+}
+.tabstrip .addtab { color: var(--series-1); font-weight: 650; padding: 7px 14px; }
+
+/* ---------- condition panel ---------- */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.name {
+  display: block; width: 100%;
+  font: inherit; font-size: 16px; font-weight: 650; color: var(--text-primary);
+  background: transparent; border: none; border-bottom: 1px dashed var(--border);
+  padding: 3px 2px 7px; margin-bottom: 14px;
+}
+.name:focus { outline: none; border-bottom-color: var(--series-1); border-bottom-style: solid; }
+
+.fields { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.fields > label { display: block; font-size: 12px; color: var(--text-secondary); }
+.f { display: flex; align-items: stretch; gap: 8px; margin-top: 4px; }
+.f input {
+  flex: 1 1 auto; min-width: 0; width: 100%;
+  font: inherit; font-size: 17px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary); background: var(--field-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 10px; text-align: right;
+}
+.f input:focus { outline: 2px solid var(--series-1); outline-offset: -1px; }
+.f input.bad { border-color: var(--danger); }
+.unit { font-size: 12px; color: var(--text-muted); flex: none; align-self: center; }
+.unitsel {
+  flex: none; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); background: var(--field-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0 8px; cursor: pointer; min-width: 62px;
+}
+.unitsel:focus { outline: 2px solid var(--series-1); outline-offset: -1px; }
+.hint { display: block; min-height: 15px; margin-top: 3px; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.result { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--gridline); }
+.r-lab { font-size: 11px; color: var(--text-muted); display: block; }
+.r-val { font-size: 30px; font-weight: 650; letter-spacing: -.015em; display: block; margin-top: 1px; }
+.r-sub { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 9px; font-size: 12px; color: var(--text-secondary); }
+.r-sub b { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.card-actions { display: flex; gap: 8px; margin-top: 16px; }
+.card-actions button { flex: 1 1 0; }
+
+/* ---------- chips (graph filter) ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.chip {
+  padding: 7px 13px; border-radius: 999px; font-size: 12px;
+  background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chip[aria-pressed="true"] {
+  background: var(--series-1); color: var(--on-accent);
+  border-color: var(--series-1); font-weight: 600;
+}
+
+/* ---------- charts ---------- */
+figure { margin: 0 0 16px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 15px; }
+figcaption { font-size: 13px; font-weight: 650; margin-bottom: 2px; }
+.fig-sub { font-size: 11px; color: var(--text-muted); margin: 0 0 13px; }
+
+.legend { display: flex; gap: 16px; margin: 0 0 13px; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+.brow { padding: 7px 0; border-radius: 6px; }
+.brow + .brow { margin-top: 2px; }
+.blab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
+.bname { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bval { font-size: 13px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; flex: none; }
+.btrack { height: 16px; display: flex; gap: 2px; }
+.bfill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 6px; }
+.seg { height: 100%; min-width: 0; }
+.seg.p { background: var(--series-1); }
+.seg.i { background: var(--series-2); border-radius: 0 4px 4px 0; }
+.seg.end { border-radius: 0 4px 4px 0; }
+
+.empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 40px 20px; margin: 0; line-height: 1.8; }
+
+/* ---------- tooltip ---------- */
+#tip {
+  position: fixed; z-index: 60; pointer-events: none;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  padding: 10px 12px; font-size: 12px; line-height: 1.6;
+  max-width: 240px; opacity: 0; transition: opacity .12s;
+}
+#tip.on { opacity: 1; }
+#tip .t-name { font-weight: 650; margin-bottom: 4px; }
+#tip .t-row { display: flex; justify-content: space-between; gap: 14px; }
+#tip .t-row span:last-child { font-variant-numeric: tabular-nums; }
+#tip .t-key { color: var(--text-secondary); display: inline-flex; align-items: center; gap: 5px; }
+#tip .t-key i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+/* ---------- table view ---------- */
+details { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; }
+summary { padding: 13px 15px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary); }
+summary::marker { color: var(--text-muted); }
+.tablewrap { overflow-x: auto; padding: 0 15px 15px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--gridline); }
+th { color: var(--text-muted); font-weight: 500; font-size: 11px; }
+th:first-child, td:first-child { text-align: left; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- notices / footer ---------- */
+.notice {
+  background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--series-2);
+  border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;
+}
+footer { margin-top: 22px; font-size: 11px; color: var(--text-muted); line-height: 1.7; }
+
+/* ---------- bottom tab bar ---------- */
+nav.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: grid; grid-template-columns: 1fr 1fr;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav.tabbar button {
+  background: none; border: none; border-radius: 0;
+  padding: 8px 0 9px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--text-muted);
+}
+nav.tabbar button[aria-selected="true"] { color: var(--series-1); font-weight: 650; }
+nav.tabbar svg { width: 23px; height: 23px; display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ローン比較</h1>
+  <p>元利均等返済・毎月払い</p>
+</header>
+
+<main>
+  <div id="storage-warn" class="notice" hidden>
+    この環境では入力内容を保存できません。閉じると内容は消えます。
+  </div>
+
+  <!-- ============ 条件ページ ============ -->
+  <div class="page" id="page-cond">
+    <h2>条件<span class="count" id="count"></span><span class="hintlabel" id="reorder-hint" hidden>長押しで並べ替え</span></h2>
+    <div class="tabstrip" id="tabstrip" role="tablist"></div>
+    <div id="panel"></div>
+  </div>
+
+  <!-- ============ グラフページ ============ -->
+  <div class="page" id="page-chart" hidden>
+    <h2>比較する条件</h2>
+    <div class="chips" id="chips"></div>
+    <div id="charts">
+      <figure>
+        <figcaption>月々の支払額</figcaption>
+        <p class="fig-sub">少ないほど毎月の負担が軽い</p>
+        <div id="chart1"></div>
+      </figure>
+      <figure>
+        <figcaption>総支払額の内訳</figcaption>
+        <p class="fig-sub">完済までに支払う合計額</p>
+        <div class="legend">
+          <span><i style="background:var(--series-1)"></i>元金</span>
+          <span><i style="background:var(--series-2)"></i>利息</span>
+        </div>
+        <div id="chart2"></div>
+      </figure>
+      <details>
+        <summary>数値を表で見る</summary>
+        <div class="tablewrap"><table id="tbl"></table></div>
+      </details>
+    </div>
+    <p class="empty" id="charts-empty" hidden>比較したい条件を上から選んでください。</p>
+
+    <footer>
+      ※ 元利均等返済・毎月払いの概算です。実際の返済額は金融機関ごとの計算方法・端数処理・手数料・保証料などにより異なります。<br>
+      ※ 入力内容はこの端末のブラウザ内にのみ保存されます。
+    </footer>
+  </div>
+</main>
+
+<nav class="tabbar" role="tablist">
+  <button type="button" id="nav-cond" role="tab" aria-selected="true" aria-controls="page-cond">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+      <path d="M4 7h16M4 12h16M4 17h16"/>
+      <circle cx="9" cy="7" r="2.4" fill="var(--surface-1)"/>
+      <circle cx="15" cy="12" r="2.4" fill="var(--surface-1)"/>
+      <circle cx="8" cy="17" r="2.4" fill="var(--surface-1)"/>
+    </svg>
+    条件
+  </button>
+  <button type="button" id="nav-chart" role="tab" aria-selected="false" aria-controls="page-chart">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <rect x="3" y="13" width="4.6" height="8" rx="1.2"/>
+      <rect x="9.7" y="8" width="4.6" height="13" rx="1.2"/>
+      <rect x="16.4" y="3.5" width="4.6" height="17.5" rx="1.2"/>
+    </svg>
+    グラフ
+  </button>
+</nav>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var MAX = 10;
+  var KEY = 'loan-compare-v3';
+
+  var seq = 1;
+  var items = [];
+  var activeId = null;
+  var page = 'cond';
+
+  function blank(src) {
+    return {
+      id: 'c' + (seq++),
+      name: '条件' + (items.length + 1),
+      man:      src ? src.man      : 3000,  // 借入金額（万円）
+      termVal:  src ? src.termVal  : 35,    // 返済期間の入力値
+      termUnit: src ? src.termUnit : 'y',   // 'y' = 年 / 'n' = 回
+      rate:     src ? src.rate     : 1.0,   // 年利（%）
+      on:       true
+    };
+  }
+
+  // 返済期間の入力値 → 支払い回数
+  function periods(it) {
+    var v = Number(it.termVal);
+    if (!isFinite(v) || v <= 0) return NaN;
+    return Math.round(it.termUnit === 'y' ? v * 12 : v);
+  }
+  function byId(id) {
+    for (var i = 0; i < items.length; i++) { if (items[i].id === id) return items[i]; }
+    return null;
+  }
+
+  // ---------- storage ----------
+  var storageOK = true;
+  function warnStorage() {
+    storageOK = false;
+    document.getElementById('storage-warn').hidden = false;
+  }
+  function save() {
+    if (!storageOK) return;
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        seq: seq, items: items, activeId: activeId, page: page
+      }));
+    } catch (e) { warnStorage(); }
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.items) || !d.items.length) return false;
+      items = d.items.slice(0, MAX);
+      items.forEach(function (it) {          // 旧形式（支払い回数のみ）からの移行
+        if (it.termVal == null) {
+          it.termVal = Number(it.n) || 420;
+          it.termUnit = 'n';
+        }
+        if (it.termUnit !== 'y' && it.termUnit !== 'n') it.termUnit = 'n';
+      });
+      seq = d.seq || items.length + 1;
+      activeId = byId(d.activeId) ? d.activeId : items[0].id;
+      page = (d.page === 'chart') ? 'chart' : 'cond';
+      return true;
+    } catch (e) { warnStorage(); return false; }
+  }
+
+  // ---------- math ----------
+  // 元利均等返済:  M = P·r / (1 − (1+r)^−n)      r = 年利 / 12
+  function calc(it) {
+    var P = Number(it.man) * 10000;
+    var n = periods(it);
+    var a = Number(it.rate);
+    if (!isFinite(P) || !isFinite(n) || !isFinite(a)) return null;
+    if (P <= 0 || n <= 0 || a < 0) return null;
+    var r = a / 100 / 12;
+    var m = (r === 0) ? P / n : P * r / (1 - Math.pow(1 + r, -n));
+    if (!isFinite(m) || m <= 0) return null;
+    var monthly = Math.round(m);
+    var total = monthly * n;           // 表示上「月々 × 回数」と一致させる
+    return { principal: P, monthly: monthly, total: total, interest: total - P };
+  }
+
+  // ---------- format ----------
+  function yen(v) { return '¥' + Math.round(v).toLocaleString('ja-JP'); }
+  function num(v) { return Math.round(v).toLocaleString('ja-JP'); }
+  // 「35年（420回）」— 年・回のどちらで入力しても両方を示す
+  function termLabel(it) {
+    var n = periods(it);
+    if (!isFinite(n) || n <= 0) return '';
+    var y = Math.floor(n / 12), m = n % 12;
+    var span = (y ? y + '年' : '') + (m ? m + 'ヶ月' : (y ? '' : n + 'ヶ月'));
+    return span + '（' + num(n) + '回）';
+  }
+
+  // ---------- elements ----------
+  var stripEl = document.getElementById('tabstrip');
+  var panelEl = document.getElementById('panel');
+  var countEl = document.getElementById('count');
+  var chipsEl = document.getElementById('chips');
+  var chartsEl = document.getElementById('charts');
+  var emptyEl = document.getElementById('charts-empty');
+  var c1 = document.getElementById('chart1');
+  var c2 = document.getElementById('chart2');
+  var tbl = document.getElementById('tbl');
+  var activeTabBtn = null;
+
+  // ---------- condition tab strip ----------
+  function renderTabs() {
+    stripEl.textContent = '';
+    activeTabBtn = null;
+    items.forEach(function (it) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('data-id', it.id);
+      b.textContent = it.name || '(無題)';
+      var on = it.id === activeId;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on) activeTabBtn = b;
+      b.addEventListener('click', function () {
+        if (justDragged) return;
+        activeId = it.id; save(); renderTabs(); renderPanel();
+      });
+      b.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        startPress(e, b, it);
+      });
+      stripEl.appendChild(b);
+    });
+
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'addtab';
+    add.textContent = '＋';
+    add.setAttribute('aria-label', '条件を追加');
+    add.disabled = items.length >= MAX;
+    add.addEventListener('click', function () {
+      if (items.length >= MAX) return;
+      var it = blank(byId(activeId) || items[items.length - 1]);
+      items.push(it);
+      activeId = it.id;
+      save(); renderTabs(); renderPanel();
+    });
+    stripEl.appendChild(add);
+
+    countEl.textContent = items.length + ' / ' + MAX;
+    document.getElementById('reorder-hint').hidden = items.length < 2;
+    if (activeTabBtn) {
+      activeTabBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
+
+  // ---------- タブの並べ替え（長押し → ドラッグ） ----------
+  var HOLD_MS = 350;   // 長押しと判定するまで
+  var SLOP = 8;        // これ以上動いたら横スクロール操作とみなす
+  var press = null;    // 長押し待ち
+  var drag = null;     // ドラッグ中
+  var rafId = 0;
+  var justDragged = false;
+
+  function tabButtons() {
+    return Array.prototype.filter.call(stripEl.children, function (b) {
+      return b.hasAttribute('data-id');
+    });
+  }
+  function cancelPress() {
+    if (press) { clearTimeout(press.timer); press = null; }
+  }
+  function startPress(e, el, it) {
+    if (items.length < 2) return;
+    cancelPress();
+    var x = e.clientX, y = e.clientY, pid = e.pointerId;
+    var p = { el: el, it: it, x: x, y: y, timer: 0 };
+    p.timer = setTimeout(function () {
+      if (press === p) { press = null; beginDrag(el, it, x, pid); }
+    }, HOLD_MS);
+    press = p;
+  }
+
+  function beginDrag(el, it, x, pointerId) {
+    drag = { el: el, it: it, offset: 0, lastX: x, pointerId: pointerId };
+    el.classList.add('drag-src');
+    try { el.setPointerCapture(pointerId); } catch (err) { /* 無くても動く */ }
+    applyDragTransform();
+    rafId = requestAnimationFrame(dragTick);
+  }
+  function applyDragTransform() {
+    drag.el.style.transform = 'translateX(' + drag.offset + 'px) scale(1.06)';
+  }
+
+  // 端に寄せている間はストリップを自動スクロールし、そのぶん指の下に留める。
+  // 並べ替えの判定は pointermove 側で行う（フレームが止まっても効くように）。
+  function dragTick() {
+    if (!drag) return;
+    var r = stripEl.getBoundingClientRect();
+    var before = stripEl.scrollLeft;
+    if (drag.lastX < r.left + 44) stripEl.scrollLeft -= 12;
+    else if (drag.lastX > r.right - 44) stripEl.scrollLeft += 12;
+    var ds = stripEl.scrollLeft - before;
+    if (ds) { drag.offset += ds; applyDragTransform(); reorderIfNeeded(); }
+    rafId = requestAnimationFrame(dragTick);
+  }
+
+  function reorderIfNeeded() {
+    // scale は中心を動かさないので、見た目の中心 = 本来の中心 + offset
+    var rect = drag.el.getBoundingClientRect();
+    var visualCenter = rect.left + rect.width / 2;
+
+    var ref = null;
+    var others = tabButtons();
+    for (var i = 0; i < others.length; i++) {
+      if (others[i] === drag.el) continue;
+      var rr = others[i].getBoundingClientRect();
+      if (visualCenter < rr.left + rr.width / 2) { ref = others[i]; break; }
+    }
+    var target = ref || stripEl.querySelector('.addtab');
+    if (drag.el.nextElementSibling === target) return;
+
+    stripEl.insertBefore(drag.el, target);
+    drag.el.style.transform = 'scale(1.06)';          // offset を外して実位置を測る
+    var moved = drag.el.getBoundingClientRect();
+    drag.offset = visualCenter - (moved.left + moved.width / 2);
+    applyDragTransform();
+    syncOrderFromDOM();
+  }
+
+  function syncOrderFromDOM() {
+    var order = [];
+    tabButtons().forEach(function (b) {
+      var it = byId(b.getAttribute('data-id'));
+      if (it) order.push(it);
+    });
+    if (order.length === items.length) items = order;
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    cancelAnimationFrame(rafId);
+    var it = drag.it;
+    try { drag.el.releasePointerCapture(drag.pointerId); } catch (err) {}
+    drag.el.style.transform = '';
+    drag.el.classList.remove('drag-src');
+    drag = null;
+    justDragged = true;
+    setTimeout(function () { justDragged = false; }, 0);
+    activeId = it.id;
+    save(); renderTabs(); renderPanel();
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    if (drag) {
+      drag.offset += e.clientX - drag.lastX;
+      drag.lastX = e.clientX;
+      applyDragTransform();
+      reorderIfNeeded();
+    } else if (press) {
+      if (Math.abs(e.clientX - press.x) > SLOP || Math.abs(e.clientY - press.y) > SLOP) cancelPress();
+    }
+  }, { passive: true });
+
+  // ドラッグ中はタッチの横スクロールを止める（touch-action の切替はジェスチャ途中では効かない）
+  stripEl.addEventListener('touchmove', function (e) {
+    if (drag) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('pointerup', function () { cancelPress(); endDrag(); });
+  document.addEventListener('pointercancel', function () { cancelPress(); endDrag(); });
+  window.addEventListener('blur', function () { cancelPress(); endDrag(); });
+
+  // ---------- condition panel ----------
+  function field(labelText, unit, value, attrs, cls) {
+    var lab = document.createElement('label');
+    lab.appendChild(document.createTextNode(labelText));
+    var wrap = document.createElement('div'); wrap.className = 'f';
+    var inp = document.createElement('input');
+    inp.type = 'number'; inp.className = cls; inp.value = value;
+    Object.keys(attrs).forEach(function (k) { inp.setAttribute(k, attrs[k]); });
+    wrap.appendChild(inp);
+
+    // unit が配列なら単位をプルダウンにする
+    var sel = null;
+    if (Array.isArray(unit)) {
+      sel = document.createElement('select');
+      sel.className = 'unitsel';
+      sel.setAttribute('aria-label', labelText + 'の単位');
+      unit.forEach(function (o) {
+        var op = document.createElement('option');
+        op.value = o[0]; op.textContent = o[1];
+        sel.appendChild(op);
+      });
+      wrap.appendChild(sel);
+    } else {
+      var u = document.createElement('span'); u.className = 'unit'; u.textContent = unit;
+      wrap.appendChild(u);
+    }
+
+    var hint = document.createElement('small'); hint.className = 'hint';
+    lab.appendChild(wrap); lab.appendChild(hint);
+    return { label: lab, input: inp, select: sel, hint: hint };
+  }
+
+  function renderPanel() {
+    panelEl.textContent = '';
+    var it = byId(activeId);
+    if (!it) return;
+
+    var card = document.createElement('article');
+    card.className = 'card';
+
+    var name = document.createElement('input');
+    name.type = 'text'; name.className = 'name'; name.value = it.name;
+    name.setAttribute('aria-label', '条件の名前'); name.maxLength = 24;
+    name.addEventListener('input', function () {
+      it.name = name.value;
+      if (activeTabBtn) activeTabBtn.textContent = it.name || '(無題)';
+      save();
+    });
+
+    var fields = document.createElement('div'); fields.className = 'fields';
+    var fAmt  = field('借入金額', '万円', it.man,
+                      { min: 1, max: 100000, step: 10, inputmode: 'numeric' }, 'amt');
+    var fTerm = field('返済期間', [['y', '年'], ['n', '回']], it.termVal,
+                      { step: 1, inputmode: 'decimal' }, 'term');
+    var fRate = field('年利', '%', it.rate,
+                      { min: 0, max: 20, step: 0.01, inputmode: 'decimal' }, 'rate');
+    fRate.hint.remove();   // 年利には補足表示がないので余白を作らない
+    fields.appendChild(fAmt.label); fields.appendChild(fTerm.label); fields.appendChild(fRate.label);
+
+    var res = document.createElement('div'); res.className = 'result';
+    var lab = document.createElement('span'); lab.className = 'r-lab'; lab.textContent = '月々の支払額';
+    var val = document.createElement('strong'); val.className = 'r-val';
+    var sub = document.createElement('div'); sub.className = 'r-sub';
+    var sTot = document.createElement('span'); var bTot = document.createElement('b');
+    sTot.appendChild(document.createTextNode('総支払額 ')); sTot.appendChild(bTot);
+    var sInt = document.createElement('span'); var bInt = document.createElement('b');
+    sInt.appendChild(document.createTextNode('総利息 ')); sInt.appendChild(bInt);
+    sub.appendChild(sTot); sub.appendChild(sInt);
+    res.appendChild(lab); res.appendChild(val); res.appendChild(sub);
+
+    var acts = document.createElement('div'); acts.className = 'card-actions';
+    var dup = document.createElement('button');
+    dup.type = 'button'; dup.className = 'btn-ghost'; dup.textContent = 'この条件を複製';
+    dup.disabled = items.length >= MAX;
+    dup.addEventListener('click', function () {
+      if (items.length >= MAX) return;
+      var copy = blank(it);
+      copy.name = (it.name || '条件') + ' の複製';
+      items.splice(items.indexOf(it) + 1, 0, copy);
+      activeId = copy.id;
+      save(); renderTabs(); renderPanel();
+    });
+    var del = document.createElement('button');
+    del.type = 'button'; del.className = 'btn-ghost danger'; del.textContent = '削除';
+    del.disabled = items.length <= 1;
+    del.addEventListener('click', function () {
+      if (items.length <= 1) return;
+      if (!confirm('「' + (it.name || '条件') + '」を削除しますか？')) return;
+      var i = items.indexOf(it);
+      items.splice(i, 1);
+      activeId = items[Math.min(i, items.length - 1)].id;
+      save(); renderTabs(); renderPanel();
+    });
+    acts.appendChild(dup); acts.appendChild(del);
+
+    card.appendChild(name);
+    card.appendChild(fields);
+    card.appendChild(res);
+    card.appendChild(acts);
+    panelEl.appendChild(card);
+
+    // 年／回で入力レンジを切り替える
+    function applyTermUnit() {
+      var years = it.termUnit === 'y';
+      fTerm.input.setAttribute('min', 1);
+      fTerm.input.setAttribute('max', years ? 50 : 600);
+      fTerm.select.value = it.termUnit;
+    }
+
+    function refresh() {
+      var r = calc(it);
+      fAmt.hint.textContent  = (Number(it.man) > 0) ? yen(Number(it.man) * 10000) : '';
+      fTerm.hint.textContent = termLabel(it);
+      [fAmt.input, fTerm.input, fRate.input].forEach(function (i) { i.classList.toggle('bad', !r); });
+      if (r) {
+        val.textContent = yen(r.monthly);
+        bTot.textContent = yen(r.total);
+        bInt.textContent = yen(r.interest);
+      } else {
+        val.textContent = '—'; bTot.textContent = '—'; bInt.textContent = '—';
+      }
+    }
+    function bind(inp, key) {
+      inp.addEventListener('input', function () {
+        it[key] = inp.value === '' ? NaN : Number(inp.value);
+        refresh(); save();
+      });
+    }
+    bind(fAmt.input, 'man');
+    bind(fTerm.input, 'termVal');
+    bind(fRate.input, 'rate');
+
+    // 単位を変えても期間そのものは変わらないよう値を換算する
+    fTerm.select.addEventListener('change', function () {
+      var next = fTerm.select.value;
+      if (next === it.termUnit) return;
+      var n = periods(it);
+      if (isFinite(n) && n > 0) {
+        it.termVal = (next === 'y') ? Math.round((n / 12) * 10) / 10 : n;
+      }
+      it.termUnit = next;
+      fTerm.input.value = isFinite(Number(it.termVal)) ? it.termVal : '';
+      applyTermUnit(); refresh(); save();
+    });
+
+    applyTermUnit();
+    refresh();
+  }
+
+  // ---------- chips ----------
+  function renderChips() {
+    chipsEl.textContent = '';
+    items.forEach(function (it) {
+      var ok = !!calc(it);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = (it.name || '(無題)') + (ok ? '' : '（未入力）');
+      b.setAttribute('aria-pressed', (it.on && ok) ? 'true' : 'false');
+      b.disabled = !ok;
+      b.addEventListener('click', function () {
+        it.on = !it.on;
+        save(); renderChips(); renderCharts();
+      });
+      chipsEl.appendChild(b);
+    });
+  }
+
+  // ---------- charts ----------
+  function row(it, r, kind, max) {
+    var wrap = document.createElement('div');
+    wrap.className = 'brow';
+
+    var lab = document.createElement('div'); lab.className = 'blab';
+    var nm = document.createElement('span'); nm.className = 'bname'; nm.textContent = it.name || '(無題)';
+    var vl = document.createElement('span'); vl.className = 'bval';
+    vl.textContent = yen(kind === 'monthly' ? r.monthly : r.total);
+    lab.appendChild(nm); lab.appendChild(vl);
+
+    var track = document.createElement('div'); track.className = 'btrack';
+    var value = (kind === 'monthly') ? r.monthly : r.total;
+    var pct = max > 0 ? (value / max) * 100 : 0;
+
+    if (kind === 'monthly') {
+      var fill = document.createElement('div');
+      fill.className = 'bfill';
+      fill.style.width = pct + '%';
+      track.appendChild(fill);
+    } else {
+      track.style.width = pct + '%';
+      var p = document.createElement('div');
+      if (r.interest > 0) {
+        p.className = 'seg p';
+        p.style.flex = '0 0 ' + ((r.principal / r.total) * 100) + '%';
+        track.appendChild(p);
+        var i = document.createElement('div');
+        i.className = 'seg i';
+        i.style.flex = '1 1 auto';
+        track.appendChild(i);
+      } else {
+        p.className = 'seg p end';
+        p.style.flex = '1 1 auto';
+        track.appendChild(p);
+      }
+    }
+
+    wrap.appendChild(lab); wrap.appendChild(track);
+    attachTip(wrap, it, r);
+    return wrap;
+  }
+
+  function renderCharts() {
+    var data = [];
+    items.forEach(function (it) {
+      var r = calc(it);
+      if (it.on && r) data.push({ it: it, r: r });
+    });
+
+    var has = data.length > 0;
+    chartsEl.hidden = !has;
+    emptyEl.hidden = has;
+    if (!has) return;
+
+    var maxM = 0, maxT = 0;
+    data.forEach(function (d) {
+      if (d.r.monthly > maxM) maxM = d.r.monthly;
+      if (d.r.total > maxT) maxT = d.r.total;
+    });
+
+    c1.textContent = '';
+    c2.textContent = '';
+    data.forEach(function (d) {
+      c1.appendChild(row(d.it, d.r, 'monthly', maxM));
+      c2.appendChild(row(d.it, d.r, 'total', maxT));
+    });
+    renderTable(data);
+  }
+
+  function renderTable(data) {
+    tbl.textContent = '';
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    ['条件', '借入金額', '返済期間', '年利', '月々の支払額', '総支払額', '総利息'].forEach(function (h) {
+      var th = document.createElement('th'); th.textContent = h; htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    var tbody = document.createElement('tbody');
+    data.forEach(function (d) {
+      var tr = document.createElement('tr');
+      [
+        d.it.name || '(無題)',
+        num(d.it.man) + '万円',
+        termLabel(d.it),
+        Number(d.it.rate) + '%',
+        yen(d.r.monthly),
+        yen(d.r.total),
+        yen(d.r.interest)
+      ].forEach(function (v) {
+        var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(thead); tbl.appendChild(tbody);
+  }
+
+  // ---------- tooltip ----------
+  var tipEl = document.getElementById('tip');
+  var tipRow = null;
+
+  function tipHTML(it, r) {
+    tipEl.textContent = '';
+    var t = document.createElement('div'); t.className = 't-name';
+    t.textContent = it.name || '(無題)';
+    tipEl.appendChild(t);
+    [
+      ['月々の支払額', yen(r.monthly), null],
+      ['総支払額', yen(r.total), null],
+      ['元金', yen(r.principal), 'var(--series-1)'],
+      ['利息', yen(r.interest), 'var(--series-2)'],
+      ['条件', num(it.man) + '万円 / ' + termLabel(it) + ' / ' + Number(it.rate) + '%', null]
+    ].forEach(function (p) {
+      var d = document.createElement('div'); d.className = 't-row';
+      var k = document.createElement('span'); k.className = 't-key';
+      if (p[2]) { var sw = document.createElement('i'); sw.style.background = p[2]; k.appendChild(sw); }
+      k.appendChild(document.createTextNode(p[0]));
+      var v = document.createElement('span'); v.textContent = p[1];
+      d.appendChild(k); d.appendChild(v);
+      tipEl.appendChild(d);
+    });
+  }
+  function placeTip(x, y) {
+    var pad = 10;
+    tipEl.style.left = '0px'; tipEl.style.top = '0px';
+    var w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    var left = Math.min(Math.max(pad, x - w / 2), window.innerWidth - w - pad);
+    var top = y - h - 14;
+    if (top < pad) top = y + 20;
+    tipEl.style.left = left + 'px';
+    tipEl.style.top = top + 'px';
+  }
+  function showTip(it, r, x, y) {
+    tipHTML(it, r);
+    tipEl.classList.add('on');
+    tipEl.setAttribute('aria-hidden', 'false');
+    placeTip(x, y);
+  }
+  function hideTip() {
+    tipEl.classList.remove('on');
+    tipEl.setAttribute('aria-hidden', 'true');
+    tipRow = null;
+  }
+  function attachTip(el, it, r) {
+    el.addEventListener('pointerenter', function (e) {
+      if (e.pointerType === 'mouse') { tipRow = el; showTip(it, r, e.clientX, e.clientY); }
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (e.pointerType === 'mouse' && tipRow === el) placeTip(e.clientX, e.clientY);
+    });
+    el.addEventListener('pointerleave', function (e) {
+      if (e.pointerType === 'mouse') hideTip();
+    });
+    el.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse') return;
+      e.stopPropagation();
+      if (tipRow === el) { hideTip(); return; }
+      tipRow = el;
+      var b = el.getBoundingClientRect();
+      showTip(it, r, b.left + b.width / 2, b.top);
+    });
+  }
+  document.addEventListener('pointerdown', function () { if (tipRow) hideTip(); });
+  window.addEventListener('scroll', function () { if (tipRow) hideTip(); }, { passive: true });
+
+  // ---------- page switching ----------
+  var pages = { cond: document.getElementById('page-cond'), chart: document.getElementById('page-chart') };
+  var navs  = { cond: document.getElementById('nav-cond'),  chart: document.getElementById('nav-chart') };
+
+  function showPage(p) {
+    page = p;
+    hideTip();
+    Object.keys(pages).forEach(function (k) {
+      pages[k].hidden = (k !== p);
+      navs[k].setAttribute('aria-selected', k === p ? 'true' : 'false');
+    });
+    if (p === 'chart') { renderChips(); renderCharts(); }
+    window.scrollTo(0, 0);
+    save();
+  }
+  navs.cond.addEventListener('click', function () { showPage('cond'); });
+  navs.chart.addEventListener('click', function () { showPage('chart'); });
+
+  // ---------- service worker (offline) ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 対応外環境では無視 */ });
+    });
+  }
+
+  // ---------- boot ----------
+  if (!load()) {
+    items = [blank(null)];
+    activeId = items[0].id;
+    page = 'cond';
+  }
+  renderTabs();
+  renderPanel();
+  showPage(page);
+})();
+</script>
+</body>
+</html>
