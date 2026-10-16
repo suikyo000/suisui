@@ -67,6 +67,10 @@ header {
 }
 header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: .01em; }
 header p  { margin: 1px 0 0; font-size: 11px; color: var(--text-muted); }
+header .ver {
+  position: absolute; right: 16px; top: calc(13px + env(safe-area-inset-top));
+  font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
 
 main { padding: 14px 16px 8px; max-width: 720px; margin: 0 auto; overflow-x: clip; }
 .page[hidden] { display: none; }
@@ -249,6 +253,7 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
 <header>
   <h1>ローン比較</h1>
   <p>元利均等返済・毎月払い</p>
+  <span class="ver" id="ver"></span>
 </header>
 
 <main>
@@ -1106,10 +1111,30 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
   navs.cond.addEventListener('click', function () { goPage('cond'); });
   navs.chart.addEventListener('click', function () { goPage('chart'); });
 
-  // ---------- service worker (offline) ----------
+  // ---------- バージョン表示 ----------
+  // 更新のたびに sw.js の CACHE_NAME と同じ番号に上げる。画面右上の表示で新旧が一目で分かる
+  var APP_VERSION = 'v3';
+  document.getElementById('ver').textContent = APP_VERSION;
+
+  // ---------- service worker (offline / 自動更新) ----------
   if ('serviceWorker' in navigator) {
+    // 新しい版が引き継いだら、一度だけ読み直して新版にする（入力内容は都度保存されているので失われない）。
+    // 初めてインストールされたとき（controller が無かったとき）は読み直さない
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloadedForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloadedForUpdate) return;
+      reloadedForUpdate = true;
+      location.reload();
+    });
+
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* 対応外環境では無視 */ });
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        // アプリを開き直した・裏から戻ったときにも更新を確認する
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update().catch(function () {});
+        });
+      }).catch(function () { /* 対応外環境では無視 */ });
     });
   }
 
