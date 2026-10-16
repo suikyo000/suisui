@@ -1,5 +1,5 @@
 // ローン比較 — 最小限のオフラインキャッシュ
-const CACHE_NAME = 'loan-sim-v1';
+const CACHE_NAME = 'loan-sim-v2';
 const ASSETS = [
   './',
   './index.html',

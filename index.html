@@ -68,7 +68,7 @@ header {
 header h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: .01em; }
 header p  { margin: 1px 0 0; font-size: 11px; color: var(--text-muted); }
 
-main { padding: 14px 16px 8px; max-width: 720px; margin: 0 auto; }
+main { padding: 14px 16px 8px; max-width: 720px; margin: 0 auto; overflow-x: clip; }
 .page[hidden] { display: none; }
 
 h2 { margin: 0 0 8px; font-size: 12px; font-weight: 650; color: var(--text-secondary); letter-spacing: .04em; }
@@ -120,8 +120,9 @@ button:disabled { opacity: .35; cursor: default; }
   display: block; width: 100%;
   font: inherit; font-size: 16px; font-weight: 650; color: var(--text-primary);
   background: transparent; border: none; border-bottom: 1px dashed var(--border);
-  padding: 3px 2px 7px; margin-bottom: 14px;
+  padding: 3px 2px 7px; margin-bottom: 4px;
 }
+.nm-hint { margin: 0 0 14px 2px; min-height: 0; }
 .name:focus { outline: none; border-bottom-color: var(--series-1); border-bottom-style: solid; }
 
 .fields { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -182,8 +183,8 @@ figcaption { font-size: 13px; font-weight: 650; margin-bottom: 2px; }
 .blab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
 .bname { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bval { font-size: 13px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; flex: none; }
-.btrack { height: 16px; display: flex; gap: 2px; }
-.bfill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 6px; }
+.btrack { height: 16px; display: flex; gap: 2px; transform-origin: 0 50%; }
+.bfill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 6px; transform-origin: 0 50%; }
 .seg { height: 100%; min-width: 0; }
 .seg.p { background: var(--series-1); }
 .seg.i { background: var(--series-2); border-radius: 0 4px 4px 0; }
@@ -330,15 +331,17 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
   var page = 'cond';
 
   function blank(src) {
-    return {
+    var it = {
       id: 'c' + (seq++),
-      name: '条件' + (items.length + 1),
+      name: '',
       man:      src ? src.man      : 3000,  // 借入金額（万円）
       termVal:  src ? src.termVal  : 35,    // 返済期間の入力値
       termUnit: src ? src.termUnit : 'y',   // 'y' = 年 / 'n' = 回
       rate:     src ? src.rate     : 1.0,   // 年利（%）
       on:       true
     };
+    it.name = autoName(it) || ('条件' + (items.length + 1));
+    return it;
   }
 
   // 返済期間の入力値 → 支払い回数
@@ -346,6 +349,15 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     var v = Number(it.termVal);
     if (!isFinite(v) || v <= 0) return NaN;
     return Math.round(it.termUnit === 'y' ? v * 12 : v);
+  }
+
+  // 条件名の自動生成:「借入金額(万円)_返済年数_年利(%)」例) 600万円・10年・2% → 600_10_2
+  // 12の倍数の回数は年に換算し、割り切れないときだけ「400回」と表記する。入力が不完全なら null
+  function autoName(it) {
+    var man = Number(it.man), rate = Number(it.rate), n = periods(it);
+    if (!isFinite(man) || man <= 0 || !isFinite(rate) || rate < 0 || !isFinite(n) || n <= 0) return null;
+    var term = (n % 12 === 0) ? String(n / 12) : (n + '回');
+    return String(man) + '_' + term + '_' + String(rate);
   }
   function byId(id) {
     for (var i = 0; i < items.length; i++) { if (items[i].id === id) return items[i]; }
@@ -415,6 +427,115 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     return span + '（' + num(n) + '回）';
   }
 
+  // ---------- アニメーション（家計簿アプリ js/anim.js の「ぽよん」を移植） ----------
+  // CSS / Web Animations API のみ。OS の「視差効果を減らす」が ON のときは何も動かさない
+  var SPRING = 'cubic-bezier(.3,1.9,.5,1)';
+  var OUT = 'cubic-bezier(.2,.8,.3,1)';
+  var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function reduced() { return !!(motionQuery && motionQuery.matches); }
+  function easeOut(k) { return 1 - Math.pow(1 - k, 3); }
+
+  function play(el, keyframes, options) {
+    if (!el || reduced() || !el.animate) return null;
+    options.fill = 'backwards';
+    return el.animate(keyframes, options);
+  }
+
+  /* ページ / パネルの切替:横からスライドして弾む。dx は出発点の横ずれ(px) */
+  function slideIn(el, dx) {
+    play(el, [{ opacity: 0, transform: 'translateX(' + dx + 'px)' }, { opacity: 1, transform: 'none' }], {
+      duration: 650,
+      easing: SPRING
+    });
+  }
+
+  /* 上からビヨンと落ちてくる(追加・複製したタブ) */
+  function dropIn(el) {
+    play(el, [{ opacity: 0, transform: 'translateY(-26px) scale(.85)' }, { opacity: 1, transform: 'none' }], {
+      duration: 600,
+      easing: SPRING
+    });
+  }
+
+  /* ボタンを押したときの潰れて戻る動き */
+  function pressPop(el) {
+    play(el, [
+      { transform: 'scale(1)' },
+      { transform: 'scale(.88, 1.08)' },
+      { transform: 'scale(1.08, .94)' },
+      { transform: 'scale(1)' }
+    ], { duration: 420, easing: 'ease-out' });
+  }
+
+  /* 追加完了:衝撃波とキラキラ */
+  function celebrate(anchor) {
+    if (reduced() || !anchor || !anchor.animate) return;
+    var r = anchor.getBoundingClientRect();
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
+    var layer = document.createElement('div');
+    layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
+    document.body.appendChild(layer);
+
+    var ring = document.createElement('i');
+    ring.style.cssText = 'position:absolute;left:' + (cx - 10) + 'px;top:' + (cy - 10) + 'px;width:20px;height:20px;border-radius:50%;border:3px solid #FF8FC7;';
+    layer.appendChild(ring);
+    ring.animate(
+      [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(11)', opacity: 0 }],
+      { duration: 700, easing: 'ease-out' }
+    );
+
+    var COUNT = 30;
+    for (var i = 0; i < COUNT; i++) {
+      var s = document.createElement('i');
+      var size = 6 + Math.random() * 7;
+      s.style.cssText = 'position:absolute;left:' + cx + 'px;top:' + cy + 'px;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:hsl(' + ((i * 360) / COUNT) + ',85%,75%);';
+      layer.appendChild(s);
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 60 + Math.random() * 90;
+      s.animate(
+        [
+          { transform: 'translate(0,0) scale(1)', opacity: 1 },
+          { transform: 'translate(' + (Math.cos(angle) * dist) + 'px,' + (Math.sin(angle) * dist - 30) + 'px) scale(0)', opacity: 0 }
+        ],
+        { duration: 900 + Math.random() * 400, easing: OUT }
+      );
+    }
+    setTimeout(function () { layer.remove(); }, 2000);
+  }
+
+  /* 横棒:左から一斉になめらかに伸びる */
+  function growBars(list) {
+    Array.prototype.forEach.call(list, function (b) {
+      play(b, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 700, easing: OUT });
+    });
+  }
+
+  /* 文字を text に落ち着かせる。animate なら最初の数字(¥と,を含む)を0から数え上げる。
+   * 描画が止まる環境でも最終値が必ず表示されるよう、タイマーでも確定させる */
+  function setText(el, text, animate) {
+    el.__cu = (el.__cu || 0) + 1;            // 進行中のカウントアップを打ち切る
+    var my = el.__cu;
+    el.textContent = text;
+    if (!animate || reduced()) return;
+    var m = text.match(/-?[\d,]+/);
+    if (!m) return;
+    var target = parseInt(m[0].replace(/,/g, ''), 10);
+    if (!target) return;
+    var head = text.slice(0, m.index);
+    var tail = text.slice(m.index + m[0].length);
+    var D = 900;
+    var t0 = performance.now();
+    function frame(t) {
+      if (el.__cu !== my) return;             // 途中で別の内容に変わったら中断
+      var k = Math.min(1, (t - t0) / D);
+      el.textContent = k < 1 ? head + Math.round(target * easeOut(k)).toLocaleString('ja-JP') + tail : text;
+      if (k < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    setTimeout(function () { if (el.__cu === my) el.textContent = text; }, D + 150);
+  }
+
   // ---------- elements ----------
   var stripEl = document.getElementById('tabstrip');
   var panelEl = document.getElementById('panel');
@@ -426,9 +547,12 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
   var c2 = document.getElementById('chart2');
   var tbl = document.getElementById('tbl');
   var activeTabBtn = null;
+  var panelRefresh = null;   // 表示中の条件パネルの計算結果を再描画する関数
 
   // ---------- condition tab strip ----------
-  function renderTabs() {
+  // opts.dropId: そのタブだけ上から落ちてくる(追加・複製)
+  function renderTabs(opts) {
+    opts = opts || {};
     stripEl.textContent = '';
     activeTabBtn = null;
     items.forEach(function (it) {
@@ -442,7 +566,9 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       if (on) activeTabBtn = b;
       b.addEventListener('click', function () {
         if (justDragged) return;
-        activeId = it.id; save(); renderTabs(); renderPanel();
+        if (it.id === activeId) { renderTabs(); renderPanel(); return; }
+        var dir = items.indexOf(it) > items.indexOf(byId(activeId)) ? 1 : -1;
+        activeId = it.id; save(); renderTabs(); renderPanel({ anim: true, dir: dir });
       });
       b.addEventListener('pointerdown', function (e) {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -462,7 +588,10 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       var it = blank(byId(activeId) || items[items.length - 1]);
       items.push(it);
       activeId = it.id;
-      save(); renderTabs(); renderPanel();
+      save(); renderTabs({ dropId: it.id }); renderPanel({ anim: true, dir: 1 });
+      var nextAdd = stripEl.querySelector('.addtab');   // 描き直された「＋」
+      pressPop(nextAdd);
+      celebrate(nextAdd);
     });
     stripEl.appendChild(add);
 
@@ -471,6 +600,7 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     if (activeTabBtn) {
       activeTabBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
+    if (opts.dropId) dropIn(stripEl.querySelector('[data-id="' + opts.dropId + '"]'));
   }
 
   // ---------- タブの並べ替え（長押し → ドラッグ） ----------
@@ -622,7 +752,9 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     return { label: lab, input: inp, select: sel, hint: hint };
   }
 
-  function renderPanel() {
+  // opts.anim: 計算結果をカウントアップ / opts.dir: パネルを横から弾ませる(+1=右から, -1=左から)
+  function renderPanel(opts) {
+    opts = opts || {};
     panelEl.textContent = '';
     var it = byId(activeId);
     if (!it) return;
@@ -638,6 +770,9 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       if (activeTabBtn) activeTabBtn.textContent = it.name || '(無題)';
       save();
     });
+    var nameHint = document.createElement('small');
+    nameHint.className = 'hint nm-hint';
+    nameHint.textContent = '金額・期間・年利を変えると、名前が自動で付き直します';
 
     var fields = document.createElement('div'); fields.className = 'fields';
     var fAmt  = field('借入金額', '万円', it.man,
@@ -667,10 +802,9 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     dup.addEventListener('click', function () {
       if (items.length >= MAX) return;
       var copy = blank(it);
-      copy.name = (it.name || '条件') + ' の複製';
       items.splice(items.indexOf(it) + 1, 0, copy);
       activeId = copy.id;
-      save(); renderTabs(); renderPanel();
+      save(); renderTabs({ dropId: copy.id }); renderPanel({ anim: true, dir: 1 });
     });
     var del = document.createElement('button');
     del.type = 'button'; del.className = 'btn-ghost danger'; del.textContent = '削除';
@@ -681,11 +815,12 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       var i = items.indexOf(it);
       items.splice(i, 1);
       activeId = items[Math.min(i, items.length - 1)].id;
-      save(); renderTabs(); renderPanel();
+      save(); renderTabs(); renderPanel({ anim: true, dir: -1 });
     });
     acts.appendChild(dup); acts.appendChild(del);
 
     card.appendChild(name);
+    card.appendChild(nameHint);
     card.appendChild(fields);
     card.appendChild(res);
     card.appendChild(acts);
@@ -699,23 +834,33 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       fTerm.select.value = it.termUnit;
     }
 
-    function refresh() {
+    // animate: 計算結果を0から数え上げる(入力中は即時反映なので false)
+    function refresh(animate) {
       var r = calc(it);
       fAmt.hint.textContent  = (Number(it.man) > 0) ? yen(Number(it.man) * 10000) : '';
       fTerm.hint.textContent = termLabel(it);
       [fAmt.input, fTerm.input, fRate.input].forEach(function (i) { i.classList.toggle('bad', !r); });
       if (r) {
-        val.textContent = yen(r.monthly);
-        bTot.textContent = yen(r.total);
-        bInt.textContent = yen(r.interest);
+        setText(val, yen(r.monthly), animate);
+        setText(bTot, yen(r.total), animate);
+        setText(bInt, yen(r.interest), animate);
       } else {
-        val.textContent = '—'; bTot.textContent = '—'; bInt.textContent = '—';
+        setText(val, '—'); setText(bTot, '—'); setText(bInt, '—');
       }
+    }
+    // 条件を変えるたびに名前を自動で付け直す(手で直した名前も上書き)。入力が不完全なうちは触らない
+    function applyAutoName() {
+      var nm = autoName(it);
+      if (nm === null) return;
+      it.name = nm;
+      name.value = nm;
+      if (activeTabBtn) activeTabBtn.textContent = nm;
     }
     function bind(inp, key) {
       inp.addEventListener('input', function () {
         it[key] = inp.value === '' ? NaN : Number(inp.value);
-        refresh(); save();
+        applyAutoName();
+        refresh(false); save();
       });
     }
     bind(fAmt.input, 'man');
@@ -732,30 +877,35 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       }
       it.termUnit = next;
       fTerm.input.value = isFinite(Number(it.termVal)) ? it.termVal : '';
-      applyTermUnit(); refresh(); save();
+      applyTermUnit(); refresh(false); save();
     });
 
     applyTermUnit();
-    refresh();
+    refresh(!!opts.anim);
+    panelRefresh = refresh;
+    if (opts.dir) slideIn(card, opts.dir * 40);
   }
 
   // ---------- chips ----------
-  function renderChips() {
+  // popId: 押されたチップだけ潰れて戻る
+  function renderChips(popId) {
     chipsEl.textContent = '';
     items.forEach(function (it) {
       var ok = !!calc(it);
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'chip';
+      b.setAttribute('data-id', it.id);
       b.textContent = (it.name || '(無題)') + (ok ? '' : '（未入力）');
       b.setAttribute('aria-pressed', (it.on && ok) ? 'true' : 'false');
       b.disabled = !ok;
       b.addEventListener('click', function () {
         it.on = !it.on;
-        save(); renderChips(); renderCharts();
+        save(); renderChips(it.id); renderCharts(true);
       });
       chipsEl.appendChild(b);
     });
+    if (popId) pressPop(chipsEl.querySelector('[data-id="' + popId + '"]'));
   }
 
   // ---------- charts ----------
@@ -801,7 +951,8 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     return wrap;
   }
 
-  function renderCharts() {
+  // animate: 横棒を左から一斉に伸ばし、金額を数え上げる
+  function renderCharts(animate) {
     var data = [];
     items.forEach(function (it) {
       var r = calc(it);
@@ -826,6 +977,13 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
       c2.appendChild(row(d.it, d.r, 'total', maxT));
     });
     renderTable(data);
+    if (animate) {
+      growBars(c1.querySelectorAll('.bfill'));
+      growBars(c2.querySelectorAll('.btrack'));
+      Array.prototype.forEach.call(chartsEl.querySelectorAll('.bval'), function (v) {
+        setText(v, v.textContent, true);
+      });
+    }
   }
 
   function renderTable(data) {
@@ -927,19 +1085,26 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
   var pages = { cond: document.getElementById('page-cond'), chart: document.getElementById('page-chart') };
   var navs  = { cond: document.getElementById('nav-cond'),  chart: document.getElementById('nav-chart') };
 
-  function showPage(p) {
+  // animate: ページが横からスライドして弾み、表示した内容が動く
+  function showPage(p, animate) {
     page = p;
     hideTip();
     Object.keys(pages).forEach(function (k) {
       pages[k].hidden = (k !== p);
       navs[k].setAttribute('aria-selected', k === p ? 'true' : 'false');
     });
-    if (p === 'chart') { renderChips(); renderCharts(); }
+    if (p === 'chart') { renderChips(); renderCharts(animate); }
+    else if (animate && panelRefresh) panelRefresh(true);
     window.scrollTo(0, 0);
+    if (animate) slideIn(pages[p], p === 'chart' ? 60 : -60);
     save();
   }
-  navs.cond.addEventListener('click', function () { showPage('cond'); });
-  navs.chart.addEventListener('click', function () { showPage('chart'); });
+  function goPage(p) {
+    pressPop(navs[p]);
+    showPage(p, page !== p);
+  }
+  navs.cond.addEventListener('click', function () { goPage('cond'); });
+  navs.chart.addEventListener('click', function () { goPage('chart'); });
 
   // ---------- service worker (offline) ----------
   if ('serviceWorker' in navigator) {
@@ -955,7 +1120,7 @@ nav.tabbar svg { width: 23px; height: 23px; display: block; }
     page = 'cond';
   }
   renderTabs();
-  renderPanel();
+  renderPanel({ anim: true });   // 起動時は金額の数え上げだけ
   showPage(page);
 })();
 </script>
